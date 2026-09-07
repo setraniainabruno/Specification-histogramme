@@ -7,3 +7,5 @@ data/outputs/*
 !data/uploads/.gitkeep
 !data/outputs/.gitkeep
 .DS_Store
+config.bat
+node_modules
