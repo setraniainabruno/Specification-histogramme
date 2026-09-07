@@ -9,20 +9,20 @@ granulométriques.
 
 ## Fonctionnalités
 
-| Domaine | Fonctionnalités | Référence dans le cours |
+| Domaine | Fonctionnalités |
 |---|---|---|
-| Histogramme | Calcul, statistiques (moyenne, écart-type, entropie, asymétrie...) | §2.2, §5.5, §5.6 |
+| Histogramme | Calcul, statistiques (moyenne, écart-type, entropie, asymétrie...) |
 | Histogramme | **Égalisation** (mise à plat) | cas particulier de la spécification |
-| Histogramme | **Spécification par image de référence** (matching CDF) | — |
-| Histogramme | **Spécification par profil théorique** (gaussien, exponentiel, bimodal, uniforme) | — |
-| Images couleur | Upload conserve la couleur (RVB) ; égalisation et spécification appliquées **canal par canal** (R, V, B indépendants) | — |
-| Seuillage | Seuillage manuel (bornes basse/haute) et automatique (Otsu) | §3.1 |
-| Morphologie | Érosion, dilatation, ouverture, fermeture | §3.2.2.1, §3.2.2.3 |
-| Morphologie | Gradient morphologique, chapeau haut de forme | §3.5.2 |
-| Morphologie | Squelette (amincissements successifs, Zhang-Suen) | §3.2.2.5 |
-| Mesures | Dénombrement (composantes connexes) | §5.2 |
-| Mesures | Granulométrie en nombre, compacité, diamètre équivalent | §5.3, §5.3.4 |
-| Mesures | Paramètres de forme (circularité) | §5.4 |
+| Histogramme | **Spécification par image de référence** (matching CDF) |
+| Histogramme | **Spécification par profil théorique** (gaussien, exponentiel, bimodal, uniforme) | 
+| Images couleur | Upload conserve la couleur (RVB) ; égalisation et spécification appliquées **canal par canal** (R, V, B indépendants) |
+| Seuillage | Seuillage manuel (bornes basse/haute) et automatique (Otsu) | 
+| Morphologie | Érosion, dilatation, ouverture, fermeture | 
+| Morphologie | Gradient morphologique, chapeau haut de forme |
+| Morphologie | Squelette (amincissements successifs, Zhang-Suen) |
+| Mesures | Dénombrement (composantes connexes) |
+| Mesures | Granulométrie en nombre, compacité, diamètre équivalent |
+| Mesures | Paramètres de forme (circularité) |
 
 ## Architecture
 
@@ -44,6 +44,13 @@ histospec/
 │   ├── templates/index.html      # interface web (SPA légère, Tailwind CSS)
 │   └── static/                   # CSS (Tailwind précompilé) + JS (fetch API, Chart.js embarqué)
 ├── requirements.txt
+├── package.json
+├── package-lock.json
+├── tailwind.input.css
+├── tailwind.config.js
+├── Dockerfile
+├── docker-compose.yaml
+├── .dockerignore
 └── README.md
 ```
 
@@ -87,39 +94,36 @@ module.exports = {
 };
 ```
 
-## Installation
+## Cloner le projet
 
+```bash
+git clone https://github.com/setraniainabruno/Specification-histogramme.git
+cd Specification-histogramme
+```
+
+## Installation et Lancement locale (Sans Docker)
+
+```bash
+npm install
+npx tailwindcss -i ./tailwind.input.css -o ./app/static/css/tailwind.css --minify
+```
 ```bash
 python -m venv .venv
 .venv\Scripts\activate #windows
 pip install -r requirements.txt
 ```
 
-## Lancement
-
 ```bash
 uvicorn app.main:app --reload
 ```
 
-- Interface web : http://127.0.0.1:8000/
-- Documentation interactive (Swagger) : http://127.0.0.1:8000/docs
-- Documentation alternative (ReDoc) : http://127.0.0.1:8000/redoc
-
-## Utilisation rapide (API)
-
+## Installation et Lancement avec Docker
 ```bash
-# 1. Uploader une image
-curl -F "file=@mon_image.png" http://127.0.0.1:8000/api/images/upload
-# -> {"image_id": "abcdef123456", ...}
-
-# 2. Spécifier son histogramme selon un profil gaussien
-curl -X POST http://127.0.0.1:8000/api/histogram/specify/profile \
-     -H "Content-Type: application/json" \
-     -d '{"image_id": "abcdef123456", "profile": "gaussian", "mean": 128, "std": 35}'
-
-# 3. Récupérer l'image résultat
-curl http://127.0.0.1:8000/api/images/<result_image_id>/png -o resultat.png
+docker compose up -d --build
 ```
+
+## Accéder à l'application
+http://localhost:8000
 
 ## Principe de la spécification d'histogramme
 
@@ -134,38 +138,3 @@ curl http://127.0.0.1:8000/api/images/<result_image_id>/png -o resultat.png
 
 L'égalisation d'histogramme est un cas particulier de cette méthode où
 la distribution cible est uniforme.
-
-## Images couleur
-
-Une image chargée en couleur (RVB) est conservée telle quelle : le
-serveur garde à la fois le tableau couleur (H×L×3) et sa luminance 2D
-(pondération ITU-R BT.601, `0.299 R + 0.587 V + 0.114 B`).
-
-- **Égalisation et spécification d'histogramme** (par profil ou par
-  référence) s'appliquent **indépendamment à chacun des trois canaux**
-  R, V, B, puis les canaux traités sont recombinés — le résultat reste
-  une image couleur. Si l'image de référence est elle-même couleur,
-  chaque canal est mis en correspondance avec le canal de même nom
-  (R→R, V→V, B→B) ; si elle est en niveaux de gris, les trois canaux de
-  la source sont mis en correspondance avec cette même distribution de
-  luminance.
-- **Seuillage et morphologie mathématique** n'ont de sens que sur une
-  image binaire / en niveaux de gris : sur une source couleur, ils
-  s'appliquent toujours à sa luminance et produisent un résultat en
-  niveaux de gris (l'API renvoie une note explicite dans ce cas).
-- Une image déjà en niveaux de gris continue de suivre exactement le
-  comportement d'origine (aucun changement de résultat).
-
-## Limites connues / pistes d'évolution
-
-- Le stockage des images est en mémoire (dictionnaire Python) : il est
-  réinitialisé à chaque redémarrage du serveur et ne convient pas à un
-  déploiement multi-worker sans adaptation (Redis, disque partagé...).
-- Les algorithmes morphologiques et de granulométrie sont implémentés
-  "from scratch" en numpy à des fins pédagogiques ; pour de grandes
-  images ou une utilisation intensive, une librairie optimisée (OpenCV,
-  scikit-image) serait plus performante.
-
-## Licence
-
-Projet pédagogique fourni tel quel, sans garantie.
