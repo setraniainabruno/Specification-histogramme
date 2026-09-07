@@ -10,7 +10,7 @@ granulométriques.
 ## Fonctionnalités
 
 | Domaine | Fonctionnalités |
-|---|---|---|
+|---|---|
 | Histogramme | Calcul, statistiques (moyenne, écart-type, entropie, asymétrie...) |
 | Histogramme | **Égalisation** (mise à plat) | cas particulier de la spécification |
 | Histogramme | **Spécification par image de référence** (matching CDF) |
