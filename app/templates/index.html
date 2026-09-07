@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Histora — Spécification d'histogramme</title>
+  <link rel="icon" href="/static/favicon.svg" type="image/svg+xml" />
+  <!-- Tailwind est précompilé en local (voir README) : l'interface fonctionne
+     entièrement hors-ligne, sans dépendance à un CDN externe. -->
+  <link rel="stylesheet" href="/static/css/tailwind.css" />
+  <link rel="stylesheet" href="/static/css/style.css" />
+  <script src="/static/js/vendor/chart.umd.min.js"></script>
+</head>
+
+<body class="bg-ink text-slate-200 font-sans min-h-screen antialiased">
+
+  <!-- ============ EN-TÊTE ============ -->
+  <header class="border-b border-line bg-ink/90 backdrop-blur sticky top-0 z-20">
+    <div class="max-w-[1500px] mx-auto px-6 py-3 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <svg width="30" height="30" viewBox="0 0 64 64" class="shrink-0">
+          <rect width="64" height="64" rx="8" fill="#161b26" />
+          <polygon points="10,50 10,22 16,22 16,50" fill="#e7a94c" />
+          <polygon points="22,50 22,10 28,10 28,50" fill="#4fc9b8" />
+          <polygon points="34,50 34,32 40,32 40,50" fill="#e7a94c" />
+          <polygon points="46,50 46,18 52,18 52,50" fill="#4fc9b8" />
+        </svg>
+        <img src="" alt="" srcset="">
+        <div class="leading-tight">
+          <h1 class="text-[15px] font-semibold tracking-tight text-slate-100">Histora</h1>
+          <p class="text-[11px] text-slate-500">Spécification d'histogramme &amp; outils d'analyse d'image</p>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- ============ TOASTS ============ -->
+  <div id="toast-container" class="fixed top-16 right-4 z-50 flex flex-col gap-2 w-[300px]"></div>
+
+  <!-- ============ CORPS ============ -->
+  <main class="max-w-[1500px] mx-auto px-6 py-6 grid grid-cols-1 lg:grid-cols-[300px_1fr_380px] gap-5 items-start">
+
+    <!-- ================= COLONNE 1 : IMAGES ================= -->
+    <section class="border border-line bg-panel">
+      <h2 class="text-[13px] font-medium text-slate-100 px-4 py-3 border-b border-line flex items-center gap-2">
+        <span class="font-mono text-amber">01</span> Image source
+        <span id="badge-source" class="hidden ml-auto text-[10px] font-mono font-normal px-1.5 py-0.5 border"></span>
+      </h2>
+      <div class="p-4 space-y-3">
+        <div id="dropzone-source" tabindex="0"
+          class="border border-dashed border-line p-5 text-center text-[12px] text-slate-500 cursor-pointer transition-colors hover:border-amber hover:text-amber/90 focus:outline-none focus:border-amber">
+          <p>Glisser une image ici<br />ou cliquer pour en choisir une</p>
+          <input type="file" id="file-source" accept="image/*" hidden />
+        </div>
+        <div class="checker relative min-h-[130px] border border-line flex items-center justify-center overflow-hidden">
+          <img id="img-source" alt="Aperçu image source"
+            class="hidden max-w-full max-h-64 [image-rendering:pixelated]" />
+          <span id="img-source-placeholder" class="text-[11px] text-slate-600 font-mono">aucune image</span>
+        </div>
+        <div id="stats-source" class="stat-grid"></div>
+      </div>
+
+      <h2 class="text-[13px] font-medium text-slate-100 px-4 py-3 border-y border-line flex items-center gap-2">
+        <span class="font-mono text-teal">02</span> Image de référence
+        <span class="text-[11px] text-slate-500 font-normal">(optionnelle)</span>
+        <span id="badge-ref" class="hidden ml-auto text-[10px] font-mono font-normal px-1.5 py-0.5 border"></span>
+      </h2>
+      <div class="p-4 space-y-3">
+        <div id="dropzone-ref" tabindex="0"
+          class="border border-dashed border-line p-5 text-center text-[12px] text-slate-500 cursor-pointer transition-colors hover:border-teal hover:text-teal/90 focus:outline-none focus:border-teal">
+          <p>Pour la spécification par<br />une image de référence</p>
+          <input type="file" id="file-ref" accept="image/*" hidden />
+        </div>
+        <div class="checker relative min-h-[110px] border border-line flex items-center justify-center overflow-hidden">
+          <img id="img-ref" alt="Aperçu image de référence"
+            class="hidden max-w-full max-h-48 [image-rendering:pixelated]" />
+          <span id="img-ref-placeholder" class="text-[11px] text-slate-600 font-mono">aucune image</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= COLONNE 2 : OPÉRATIONS ================= -->
+    <section class="border border-line bg-panel">
+      <h2 class="text-[13px] font-medium text-slate-100 px-4 py-3 border-b border-line flex items-center gap-2">
+        <span class="font-mono text-amber">03</span> Opérations
+      </h2>
+
+      <div class="p-4 space-y-5">
+
+        <!-- Histogramme -->
+        <div class="border border-line">
+          <h3 class="text-[12px] font-medium text-slate-200 px-3 py-2 border-b border-line bg-panel2">Histogramme</h3>
+          <div class="p-3 space-y-3">
+            <button id="btn-equalize" class="btn-primary w-full" disabled>
+              Égaliser (distribution uniforme)
+            </button>
+
+            <div class="pt-1">
+              <label class="field-label" for="profile-select">Spécification par profil théorique</label>
+              <div class="flex gap-2">
+                <select id="profile-select" class="field flex-1">
+                  <option value="gaussian">Gaussien</option>
+                  <option value="exponential">Exponentiel</option>
+                  <option value="bimodal">Bimodal</option>
+                  <option value="uniform">Uniforme</option>
+                </select>
+                <button id="btn-specify-profile" class="btn-primary shrink-0" disabled>Appliquer</button>
+              </div>
+              <div id="profile-params" class="param-grid mt-2"></div>
+              <div class="mt-2 border border-line bg-panel2 p-2">
+                <p class="text-[10px] text-slate-500 font-mono mb-1">aperçu du profil visé</p>
+                <canvas id="chart-profile-preview" height="70"></canvas>
+              </div>
+            </div>
+
+            <div class="pt-1 border-t border-line">
+              <label class="field-label pt-2">Spécification par image de référence</label>
+              <button id="btn-specify-ref" class="btn-secondary w-full" disabled>
+                Appliquer avec l'image de référence
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Seuillage -->
+        <div class="border border-line">
+          <h3
+            class="text-[12px] font-medium text-slate-200 px-3 py-2 border-b border-line bg-panel2 flex items-center justify-between">
+            <span>Seuillage</span>
+          </h3>
+          <div class="p-3 space-y-3">
+            <p class="text-[11px] text-slate-500 -mt-1">Sur une image couleur, s'applique sur la luminance (résultat en
+              niveaux de gris).</p>
+            <div class="flex gap-4 text-[12px]">
+              <label class="flex items-center gap-1.5 cursor-pointer">
+                <input type="radio" name="thresh-mode" value="otsu" checked class="accent-amber" /> Otsu (auto)
+              </label>
+              <label class="flex items-center gap-1.5 cursor-pointer">
+                <input type="radio" name="thresh-mode" value="manual" class="accent-amber" /> Manuel
+              </label>
+            </div>
+            <div class="flex gap-2" id="thresh-manual-row" style="display:none">
+              <label class="field-label flex-1">Bas
+                <input type="number" id="thresh-low" value="0" min="0" max="255" class="field w-full mt-1" />
+              </label>
+              <label class="field-label flex-1">Haut
+                <input type="number" id="thresh-high" value="255" min="0" max="255" class="field w-full mt-1" />
+              </label>
+            </div>
+            <button id="btn-threshold" class="btn-primary w-full" disabled>Seuiller</button>
+          </div>
+        </div>
+
+        <!-- Morphologie -->
+        <div class="border border-line">
+          <h3
+            class="text-[12px] font-medium text-slate-200 px-3 py-2 border-b border-line bg-panel2 flex items-center justify-between">
+            <span>Morphologie mathématique</span>
+          </h3>
+          <div class="p-3 space-y-3">
+            <p class="text-[11px] text-slate-500 -mt-1">Sur une image couleur, s'applique sur la luminance (résultat en
+              niveaux de gris).</p>
+            <div class="param-grid">
+              <label class="field-label">Élément structurant
+                <select id="morph-shape" class="field w-full mt-1">
+                  <option value="disk">Disque</option>
+                  <option value="square">Carré</option>
+                  <option value="cross">Croix</option>
+                </select>
+              </label>
+              <label class="field-label">Taille
+                <input type="number" id="morph-size" value="1" min="1" max="10" class="field w-full mt-1" />
+              </label>
+            </div>
+            <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              <button class="btn-ghost" data-morph="erode" disabled>Érosion</button>
+              <button class="btn-ghost" data-morph="dilate" disabled>Dilatation</button>
+              <button class="btn-ghost" data-morph="opening" disabled>Ouverture</button>
+              <button class="btn-ghost" data-morph="closing" disabled>Fermeture</button>
+              <button class="btn-ghost" data-morph="gradient" disabled>Gradient</button>
+              <button class="btn-ghost" data-morph="tophat" disabled>Chapeau h.f.</button>
+              <button class="btn-ghost col-span-2 sm:col-span-1" data-morph="skeleton" disabled>Squelette</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Mesures -->
+        <div class="border border-line">
+          <h3
+            class="text-[12px] font-medium text-slate-200 px-3 py-2 border-b border-line bg-panel2 flex items-center justify-between">
+            <span>Mesures / granulométrie</span>
+          </h3>
+          <div class="p-3 space-y-3">
+            <button id="btn-particles" class="btn-primary w-full" disabled>Analyser les particules</button>
+            <div id="particles-result" class="stat-grid"></div>
+            <div id="particles-chart-wrap" class="hidden border border-line bg-panel2 p-2">
+              <p class="text-[10px] text-slate-500 font-mono mb-1">répartition des diamètres</p>
+              <canvas id="chart-granulometry" height="90"></canvas>
+            </div>
+            <div id="particles-table-wrap" class="hidden max-h-48 overflow-y-auto border border-line">
+              <table class="w-full text-[11px] font-mono">
+                <thead class="sticky top-0 bg-panel2 text-slate-500">
+                  <tr>
+                    <th class="text-left font-normal px-2 py-1">#</th>
+                    <th class="text-left font-normal px-2 py-1">aire</th>
+                    <th class="text-left font-normal px-2 py-1">diam.</th>
+                    <th class="text-left font-normal px-2 py-1">circul.</th>
+                  </tr>
+                </thead>
+                <tbody id="particles-table-body"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex gap-2 pt-1">
+          <button id="btn-use-result" class="btn-secondary flex-1" disabled>
+            ↻ Utiliser le résultat comme source
+          </button>
+          <button id="btn-reset" class="btn-ghost">Réinitialiser</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= COLONNE 3 : RÉSULTAT ================= -->
+    <section class="border border-line bg-panel">
+      <h2 class="text-[13px] font-medium text-slate-100 px-4 py-3 border-b border-line flex items-center gap-2">
+        <span class="font-mono text-teal">04</span> Résultat
+        <span id="badge-result" class="hidden ml-auto text-[10px] font-mono font-normal px-1.5 py-0.5 border"></span>
+      </h2>
+      <div class="p-4 space-y-3">
+        <div class="checker relative min-h-[150px] border border-line flex items-center justify-center overflow-hidden">
+          <img id="img-result" alt="Aperçu image résultat"
+            class="hidden max-w-full max-h-64 [image-rendering:pixelated]" />
+          <span id="img-result-placeholder" class="text-[11px] text-slate-600 font-mono">en attente d'un
+            traitement</span>
+        </div>
+        <div id="stats-result" class="stat-grid"></div>
+        <a id="download-link" class="btn-secondary inline-block text-center" style="display:none" download>
+          Télécharger le PNG
+        </a>
+      </div>
+
+      <div class="px-4 pb-4 space-y-3">
+        <div class="border border-line bg-panel2 p-2">
+          <p class="text-[10px] text-slate-500 font-mono mb-1">histogramme — image source</p>
+          <canvas id="chart-source"></canvas>
+        </div>
+        <div class="border border-line bg-panel2 p-2">
+          <p class="text-[10px] text-slate-500 font-mono mb-1">histogramme — image résultat</p>
+          <canvas id="chart-result"></canvas>
+        </div>
+      </div>
+    </section>
+  </main>
+
+
+  <script src="/static/js/app.js"></script>
+</body>
+
+</html>
